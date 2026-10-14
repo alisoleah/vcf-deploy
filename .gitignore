@@ -10,6 +10,7 @@ logs/
 .vault_pass
 credentials/*/.vault_pass
 credentials/*/vault.yml.decrypted
+credentials/test/vault.yml
 
 # Python
 *.egg-info/
