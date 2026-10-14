@@ -1,0 +1,76 @@
+---
+# Playbook: VCF Deployment - Test Environment
+# Description: Submit VCF deployment using mock VCF Installer API
+
+- name: VCF Deployment Test Playbook
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - group_vars/test.yml
+    - credentials/test/vault.yml
+
+  tasks:
+    - name: VCF Deployment Test - Starting
+      debug:
+        msg: "Starting VCF deployment test via Mock VCF Installer API"
+
+    - name: Validate VCF deployment specification (Mock)
+      mock_vcf_installer_api:
+        base_uri: "{{ vcf_installer.api_base_url }}"
+        username: "{{ vcf_installer.api_username | default('admin@local') }}"
+        password: "{{ vcf_installer.api_password | default('password') }}"
+        operation: "validate_spec"
+        deployment_spec: "{{ vcf_deployment_spec }}"
+        validate_certs: false
+        timeout: "{{ vcf_installer.timeout }}"
+      delegate_to: localhost
+      register: validation_result
+      when: not workflow.skip_preflight
+
+    - name: Check validation result
+      assert:
+        - validation_result.result.valid | default(true)
+      fail_msg: "VCF deployment specification validation failed: {{ validation_result.result.message }}"
+      when: not workflow.skip_preflight
+
+    - name: Submit VCF deployment specification (Mock)
+      mock_vcf_installer_api:
+        base_uri: "{{ vcf_installer.api_base_url }}"
+        username: "{{ vcf_installer.api_username | default('admin@local') }}"
+        password: "{{ vcf_installer.api_password | default('password') }}"
+        operation: "submit_deployment"
+        deployment_spec: "{{ vcf_deployment_spec }}"
+        validate_certs: false
+        timeout: "{{ vcf_installer.timeout }}"
+      delegate_to: localhost
+      register: deployment_result
+
+    - name: Store deployment task ID
+      set_fact:
+        vcf_deployment_task_id: "{{ deployment_result.task_id }}"
+      when: deployment_result.task_id is defined
+
+    - name: Display mock deployment task ID
+      debug:
+        msg: "Mock deployment task ID: {{ vcf_deployment_task_id }}"
+
+    - name: Get mock task status
+      mock_vcf_installer_api:
+        base_uri: "{{ vcf_installer.api_base_url }}"
+        username: "{{ vcf_installer.api_username | default('admin@local') }}"
+        password: "{{ vcf_installer.api_password | default('password') }}"
+        operation: "get_task_status"
+        task_id: "{{ vcf_deployment_task_id }}"
+        validate_certs: false
+        timeout: "{{ vcf_installer.timeout }}"
+      delegate_to: localhost
+      register: task_status
+      when: vcf_deployment_task_id is defined
+
+    - name: Display mock task status
+      debug:
+        msg: "Mock task status: {{ task_status.result }}"
+
+    - name: VCF Deployment Test - Completed
+      debug:
+        msg: "VCF deployment test completed successfully (mock mode)"

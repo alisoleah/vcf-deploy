@@ -1,0 +1,237 @@
+---
+# VCF Automation Framework - Test Configuration File
+# This is the test environment configuration
+# Customized for lab testing with Isilon and AWX
+
+# =============================================================================
+# Environment Configuration
+# =============================================================================
+vcf_environment: "test"
+vcf_version: "9.1"
+
+# =============================================================================
+# VCF Installer Configuration (Mock)
+# =============================================================================
+vcf_installer:
+  hostname: "localhost"
+  ip_address: "127.0.0.1"
+  port: 8080
+  api_base_url: "http://localhost:8080"
+  timeout: 300
+  use_mock: true  # Use mock module for testing
+  # Credentials are stored in vault (not used in mock mode)
+
+# =============================================================================
+# Workflow Configuration
+# =============================================================================
+workflow:
+  type: "VCF"
+  skip_hardware_prep: true      # Skip - no BMC in test environment
+  skip_storage_prep: false      # Test with real Isilon
+  skip_preflight: true          # Skip - no real ESXi hosts (unless configured)
+  skip_day2_operations: true    # Skip - no SDDC Manager
+  dry_run: false
+  simulation_mode: true         # Enable simulation mode for testing
+
+# =============================================================================
+# Hardware Configuration (Skipped in Test)
+# =============================================================================
+hardware:
+  bmc_type: "mock"              # Mock BMC type
+  bmc_port: 443
+  bmc_timeout: 60
+  bios:
+    boot_mode: "uefi"
+    virtualization: true
+    power_management: true
+  raid:
+    controller_mode: "raid"
+    cache_policy: "writeback"
+  esxi:
+    install_method: "pxe"
+    timeout: 3600
+
+# =============================================================================
+# Storage Configuration (Real Isilon)
+# =============================================================================
+storage:
+  powerscale:
+    hostname: "{{ vault_isilon_hostname }}"
+    api_port: 8080
+    api_base_url: "https://{{ storage.powerscale.hostname }}:{{ storage.powerscale.api_port }}"
+    timeout: 120
+    # Credentials are stored in vault
+  nfs:
+    base_path: "/ifs/vcf-test"
+    exports:
+      - name: "vcf-vsan-test"
+        path: "/ifs/vcf-test/vsan"
+        clients: "{{ groups.vcf_hosts | default([]) | map('extract', hostvars, ['ansible_host']) | list }}"
+        rw: true
+      - name: "vcf-vmotion-test"
+        path: "/ifs/vcf-test/vmotion"
+        clients: "{{ groups.vcf_hosts | default([]) | map('extract', hostvars, ['ansible_host']) | list }}"
+        rw: true
+  synciq:
+    enabled: true
+    policy_name: "vcf-test-replication"
+    source_path: "/ifs/vcf-test"
+    target_host: "{{ vault_synciq_target_host | default('') }}"
+    target_path: "/ifs/vcf-test-backup"
+    schedule: "daily"
+
+# =============================================================================
+# Network Configuration (Test Values)
+# =============================================================================
+network:
+  management:
+    vlan: 100
+    mtu: 1500
+    gateway: "192.168.1.1"
+    dns_servers:
+      - "8.8.8.8"
+      - "8.8.4.4"
+    ntp_servers:
+      - "time.google.com"
+      - "time.cloudflare.com"
+  vsan:
+    vlan: 101
+    mtu: 9000
+    lacp_enabled: true
+  vmotion:
+    vlan: 102
+    mtu: 9000
+    lacp_enabled: true
+  vsphere:
+    vlan: 103
+    mtu: 1500
+  nsx:
+    vlan: 104
+    mtu: 9000
+
+# =============================================================================
+# VCF Deployment Specification (Test Values)
+# =============================================================================
+vcf_deployment:
+  domain_name: "vcf-test.local"
+  admin_password: "{{ vault_vcf_admin_password | default('TestPassword123!') }}"
+  root_password: "{{ vault_esxi_root_password | default('TestPassword123!') }}"
+  sddc_manager:
+    hostname: "sddc-manager.vcf-test.local"
+    ip_address: "192.168.1.10"
+    netmask: "255.255.255.0"
+    gateway: "{{ network.management.gateway }}"
+  esxi_hosts:
+    count: "{{ groups.vcf_hosts | default([]) | length }}"
+    password: "{{ vault_esxi_root_password | default('TestPassword123!') }}"
+  nsx:
+    enabled: true
+    license_key: "{{ vault_nsx_license_key | default('TEST-LICENSE-KEY') }}"
+  vsan:
+    enabled: true
+    license_key: "{{ vault_vsan_license_key | default('TEST-LICENSE-KEY') }}"
+  vcenter:
+    license_key: "{{ vault_vcenter_license_key | default('TEST-LICENSE-KEY') }}"
+
+# =============================================================================
+# SDDC Manager Configuration (Mock)
+# =============================================================================
+sddc_manager:
+  hostname: "localhost"
+  ip_address: "127.0.0.1"
+  port: 8081
+  api_base_url: "http://localhost:8081"
+  timeout: 300
+  use_mock: true  # Use mock module for testing
+  # Credentials are stored in vault (not used in mock mode)
+
+# =============================================================================
+# VCF Automation and Operations Configuration (Skipped in Test)
+# =============================================================================
+vcf_automation:
+  enabled: false  # Disabled in test environment
+  appliance:
+    hostname: "vcf-automation.vcf-test.local"
+    ip_address: "192.168.1.201"
+    netmask: "255.255.255.0"
+    gateway: "{{ network.management.gateway }}"
+    sizing:
+      cpu: 8
+      memory_gb: 32
+      disk_gb: 200
+    license_key: "{{ vault_vcf_automation_license_key | default('TEST-LICENSE-KEY') }}"
+  networking:
+    portgroup: "Management Network"
+  registration:
+    vcenter: "{{ vcf_deployment.sddc_manager.hostname }}"
+    nsx: "{{ vcf_deployment.sddc_manager.hostname }}"
+
+vcf_operations:
+  enabled: false  # Disabled in test environment
+  appliance:
+    hostname: "vcf-operations.vcf-test.local"
+    ip_address: "192.168.1.202"
+    netmask: "255.255.255.0"
+    gateway: "{{ network.management.gateway }}"
+    sizing:
+      cpu: 8
+      memory_gb: 32
+      disk_gb: 200
+    license_key: "{{ vault_vcf_operations_license_key | default('TEST-LICENSE-KEY') }}"
+  networking:
+    portgroup: "Management Network"
+
+# =============================================================================
+# Certificate Configuration
+# =============================================================================
+certificates:
+  generate_self_signed: true
+  country: "US"
+  state: "{{ vault_cert_state | default('California') }}"
+  locality: "{{ vault_cert_locality | default('Palo Alto') }}"
+  organization: "{{ vault_cert_organization | default('Test Company') }}"
+  organizational_unit: "IT"
+  validity_days: 3650
+
+# =============================================================================
+# Validation Thresholds (Relaxed for Test)
+# =============================================================================
+validation:
+  dns:
+    timeout: 5
+    required_servers: 2
+  ntp:
+    max_offset: 100  # milliseconds
+    timeout: 5
+  network:
+    ping_timeout: 2
+    ping_count: 3
+  hardware:
+    min_memory_gb: 64  # Lowered for test environment
+    min_cpu_cores: 8   # Lowered for test environment
+    min_disk_gb: 200   # Lowered for test environment
+
+# =============================================================================
+# Logging and Monitoring
+# =============================================================================
+logging:
+  level: "DEBUG"  # Debug level for testing
+  format: "json"
+  file: "./logs/vcf-automation-test.log"
+  max_size_mb: 100
+  backup_count: 5
+
+monitoring:
+  poll_interval: 10  # Faster polling for testing
+  max_retries: 30    # Fewer retries for testing
+  timeout: 600      # Shorter timeout for testing
+
+# =============================================================================
+# Execution Environment
+# =============================================================================
+execution:
+  parallel_hosts: true
+  fork_count: 5
+  timeout: 1800
+  retry_on_failure: true
+  max_retries: 3
