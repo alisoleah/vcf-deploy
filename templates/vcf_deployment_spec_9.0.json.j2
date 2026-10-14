@@ -1,0 +1,68 @@
+{
+  "spec": {
+    "name": "{{ vcf_deployment.domain_name }}",
+    "description": "VCF Deployment - {{ vcf_environment }} Environment",
+    "vcfVersion": {
+      "version": "{{ vcf_version }}",
+      "bundleVersion": "{{ vcf_deployment.bundle_version | default('') }}"
+    },
+    "workflowType": "{{ workflow.type }}",
+    "sddcManagerSpec": {
+      "hostname": "{{ vcf_deployment.sddc_manager.hostname }}",
+      "ipAddress": "{{ vcf_deployment.sddc_manager.ip_address }}",
+      "netmask": "{{ vcf_deployment.sddc_manager.netmask }}",
+      "gateway": "{{ vcf_deployment.sddc_manager.gateway }}"
+    },
+    "esxiHostSpecs": [
+      {% for host in groups['vcf_hosts'] %}
+      {
+        "hostname": "{{ hostvars[host].inventory_hostname }}",
+        "ipAddress": "{{ hostvars[host].ansible_host }}",
+        "netmask": "{{ vcf_deployment.sddc_manager.netmask }}",
+        "gateway": "{{ vcf_deployment.sddc_manager.gateway }}",
+        "password": "{{ vcf_deployment.esxi_hosts.password }}"
+      }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ],
+    "networkSpecs": {
+      "vCenterNetworkSpec": {
+        "id": "{{ network.management.vlan }}",
+        "mtu": {{ network.management.mtu }},
+        "gateway": "{{ network.management.gateway }}",
+        "subnet": "{{ network.management.subnet | default('') }}",
+        "dnsServers": {{ network.management.dns_servers }},
+        "ntpServers": {{ network.management.ntp_servers }}
+      },
+      "nsxEdgeClusterVlanIds": [
+        {{ network.vsan.vlan }},
+        {{ network.vmotion.vlan }},
+        {{ network.nsx.vlan }}
+      ],
+      "nsxEdgeClusterUplinkVlanIds": [
+        {{ network.management.vlan }}
+      ]
+    },
+    "nsxSpec": {
+      "nsxManagerSpec": {
+        "hostname": "{{ vcf_deployment.sddc_manager.hostname }}",
+        "ipAddress": "{{ vcf_deployment.sddc_manager.ip_address }}",
+        "netmask": "{{ vcf_deployment.sddc_manager.netmask }}",
+        "gateway": "{{ vcf_deployment.sddc_manager.gateway }}"
+      },
+      "licenseKey": "{{ vcf_deployment.nsx.license_key }}"
+    },
+    "vsanSpec": {
+      "licenseKey": "{{ vcf_deployment.vsan.license_key }}"
+    },
+    "vcenterSpec": {
+      "licenseKey": "{{ vcf_deployment.vcenter.license_key }}"
+    },
+    "adminUserSpec": {
+      "username": "admin",
+      "password": "{{ vcf_deployment.admin_password }}"
+    },
+    "rootUserSpec": {
+      "password": "{{ vcf_deployment.root_password }}"
+    }
+  }
+}

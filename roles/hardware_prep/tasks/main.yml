@@ -1,0 +1,56 @@
+---
+# Role: hardware_prep
+# Description: Configure physical hardware (BIOS, RAID, ESXi installation) via Redfish API
+
+- name: Hardware Preparation - Starting
+  debug:
+    msg: "Starting hardware preparation for {{ inventory_hostname }}"
+
+- name: Configure BIOS settings via Redfish
+  redfish_bios_config:
+    base_uri: "https://{{ hostvars[inventory_hostname].bmc_ip | default(inventory_hostname) }}"
+    username: "{{ bmc_credentials[inventory_hostname].username }}"
+    password: "{{ bmc_credentials[inventory_hostname].password }}"
+    boot_mode: "{{ hardware.bios.boot_mode }}"
+    virtualization: "{{ hardware.bios.virtualization }}"
+    power_management: "{{ hardware.bios.power_management }}"
+    validate_certs: false
+    timeout: "{{ hardware.bmc_timeout }}"
+  delegate_to: localhost
+  register: bios_config_result
+  when: hardware.bmc_type in ['idrac', 'ilo', 'redfish']
+
+- name: Configure RAID controller via Redfish
+  redfish_raid_config:
+    base_uri: "https://{{ hostvars[inventory_hostname].bmc_ip | default(inventory_hostname) }}"
+    username: "{{ bmc_credentials[inventory_hostname].username }}"
+    password: "{{ bmc_credentials[inventory_hostname].password }}"
+    controller_mode: "{{ hardware.raid.controller_mode }}"
+    cache_policy: "{{ hardware.raid.cache_policy }}"
+    validate_certs: false
+    timeout: "{{ hardware.bmc_timeout }}"
+  delegate_to: localhost
+  register: raid_config_result
+  when: hardware.bmc_type in ['idrac', 'ilo', 'redfish']
+
+- name: Check if reboot is required after BIOS/RAID configuration
+  set_fact:
+    reboot_required: "{{ bios_config_result.reboot_required | default(false) or raid_config_result.reboot_required | default(false) }}"
+
+- name: Reboot host if required
+  reboot:
+    reboot_timeout: 600
+    post_reboot_delay: 30
+  become: true
+  when: reboot_required and not ansible_check_mode
+
+- name: Wait for host to come back online after reboot
+  wait_for_connection:
+    delay: 30
+    timeout: 600
+  become: true
+  when: reboot_required and not ansible_check_mode
+
+- name: Hardware Preparation - Completed
+  debug:
+    msg: "Hardware preparation completed for {{ inventory_hostname }}"

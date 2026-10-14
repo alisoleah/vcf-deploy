@@ -1,0 +1,35 @@
+---
+# Hardware Resource Validation Tasks
+
+- name: Check total memory
+  command: "free -g | grep Mem | awk '{print $2}'"
+  register: total_memory_gb
+  changed_when: false
+  become: true
+
+- name: Validate minimum memory requirement
+  assert:
+    - total_memory_gb.stdout | int >= validation.hardware.min_memory_gb
+  fail_msg: "Insufficient memory: {{ total_memory_gb.stdout }}GB (minimum: {{ validation.hardware.min_memory_gb }}GB)"
+
+- name: Check CPU core count
+  command: "nproc"
+  register: cpu_cores
+  changed_when: false
+  become: true
+
+- name: Validate minimum CPU core requirement
+  assert:
+    - cpu_cores.stdout | int >= validation.hardware.min_cpu_cores
+  fail_msg: "Insufficient CPU cores: {{ cpu_cores.stdout }} (minimum: {{ validation.hardware.min_cpu_cores }})"
+
+- name: Check available disk space
+  command: "df -BG / | tail -1 | awk '{print $4}'"
+  register: available_disk_gb
+  changed_when: false
+  become: true
+
+- name: Validate minimum disk space requirement
+  assert:
+    - available_disk_gb.stdout | int >= validation.hardware.min_disk_gb
+  fail_msg: "Insufficient disk space: {{ available_disk_gb.stdout }}GB (minimum: {{ validation.hardware.min_disk_gb }}GB)"

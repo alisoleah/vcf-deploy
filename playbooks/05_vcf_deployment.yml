@@ -1,0 +1,13 @@
+---
+# Playbook: VCF Deployment
+# Description: Interact with VCF Installer API to submit deployment and monitor progress
+
+- name: VCF Deployment Playbook
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - group_vars/main.yml
+    - credentials/{{ vcf_environment }}/vault.yml
+  
+  roles:
+    - vcf_deployment

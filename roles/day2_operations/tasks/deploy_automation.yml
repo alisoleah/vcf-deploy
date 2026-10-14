@@ -1,0 +1,54 @@
+---
+# Deploy VCF Automation Appliance
+
+- name: Build VCF Automation appliance specification
+  set_fact:
+    vcf_automation_spec:
+      spec:
+        name: "{{ vcf_automation.appliance.hostname }}"
+        description: "VCF Automation Appliance - {{ vcf_environment }} Environment"
+        type: "VCF_AUTOMATION"
+        sizing:
+          cpu: "{{ vcf_automation.appliance.sizing.cpu }}"
+          memoryGB: "{{ vcf_automation.appliance.sizing.memory_gb }}"
+          diskGB: "{{ vcf_automation.appliance.sizing.disk_gb }}"
+        network:
+          ipAddress: "{{ vcf_automation.appliance.ip_address }}"
+          netmask: "{{ vcf_automation.appliance.netmask }}"
+          gateway: "{{ vcf_automation.appliance.gateway }}"
+          portGroup: "{{ vcf_automation.networking.portgroup }}"
+        licenseKey: "{{ vcf_automation.appliance.license_key }}"
+        registration:
+          vcenter: "{{ vcf_automation.registration.vcenter }}"
+          nsx: "{{ vcf_automation.registration.nsx }}"
+
+- name: Deploy VCF Automation appliance via SDDC Manager API
+  sddc_manager_api:
+    base_uri: "{{ sddc_manager.api_base_url }}"
+    username: "{{ vcf_deployment.admin_password }}"
+    password: "{{ vcf_deployment.admin_password }}"
+    operation: "deploy_automation"
+    appliance_spec: "{{ vcf_automation_spec }}"
+    validate_certs: false
+    timeout: "{{ sddc_manager.timeout }}"
+  delegate_to: localhost
+  register: automation_deployment_result
+  when: not workflow.dry_run
+
+- name: Store VCF Automation appliance ID
+  set_fact:
+    vcf_automation_appliance_id: "{{ automation_deployment_result.appliance_id }}"
+  when: automation_deployment_result.appliance_id is defined
+
+- name: Monitor VCF Automation appliance deployment
+  include_tasks: monitor_appliance.yml
+  vars:
+    appliance_id: "{{ vcf_automation_appliance_id }}"
+    appliance_name: "VCF Automation"
+  when:
+    - vcf_automation_appliance_id is defined
+    - not workflow.dry_run
+
+- name: VCF Automation appliance deployment completed
+  debug:
+    msg: "VCF Automation appliance deployed successfully with ID: {{ vcf_automation_appliance_id }}"

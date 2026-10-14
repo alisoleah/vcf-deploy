@@ -1,0 +1,55 @@
+---
+# Master Playbook: VCF Automation Framework
+# Description: Orchestrate the complete VCF deployment workflow
+
+- name: VCF Automation Framework - Master Playbook
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - group_vars/main.yml
+    - credentials/{{ vcf_environment }}/vault.yml
+  
+  tasks:
+    - name: Display deployment configuration
+      debug:
+        msg: |
+          VCF Automation Framework Deployment
+          ===================================
+          Environment: {{ vcf_environment }}
+          VCF Version: {{ vcf_version }}
+          Workflow Type: {{ workflow.type }}
+          Dry Run: {{ workflow.dry_run }}
+
+- name: Include Hardware Preparation Playbook
+  import_playbook: playbooks/01_hardware_prep.yml
+  when: not workflow.skip_hardware_prep
+
+- name: Include Storage Preparation Playbook
+  import_playbook: playbooks/02_storage_prep.yml
+  when: not workflow.skip_storage_prep
+
+- name: Include Pre-Flight Validation Playbook
+  import_playbook: playbooks/03_preflight_validation.yml
+  when: not workflow.skip_preflight
+
+- name: Include VCF Payload Generation Playbook
+  import_playbook: playbooks/04_vcf_payload_gen.yml
+
+- name: Include VCF Deployment Playbook
+  import_playbook: playbooks/05_vcf_deployment.yml
+
+- name: Include Day 2 Operations Playbook
+  import_playbook: playbooks/06_day2_operations.yml
+  when:
+    - not workflow.skip_day2_operations
+    - vcf_automation.enabled or vcf_operations.enabled
+
+- name: Deployment Summary
+  debug:
+    msg: |
+      VCF Deployment Summary
+      =====================
+      Environment: {{ vcf_environment }}
+      VCF Version: {{ vcf_version }}
+      Workflow Type: {{ workflow.type }}
+      Status: COMPLETED

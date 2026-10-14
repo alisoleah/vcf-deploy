@@ -1,0 +1,234 @@
+---
+# VCF Automation Framework - Central Configuration File
+# This is the master configuration file for the entire framework
+# All primary variables are mapped here for easy parameterization
+
+# =============================================================================
+# Environment Configuration
+# =============================================================================
+vcf_environment: "production"  # Options: production, staging, development
+vcf_version: "9.1"  # Target VCF version: 9.0 or 9.1
+
+# =============================================================================
+# VCF Installer Configuration
+# =============================================================================
+vcf_installer:
+  hostname: "{{ vault_vcf_installer_hostname }}"
+  ip_address: "{{ vault_vcf_installer_ip }}"
+  port: 443
+  api_base_url: "https://{{ vcf_installer.hostname }}"
+  timeout: 300
+  # Credentials are stored in vault
+
+# =============================================================================
+# Workflow Configuration
+# =============================================================================
+workflow:
+  type: "VCF"  # Options: VCF, VCF_EXTEND, VCF_COMPLETE
+  skip_preflight: false
+  skip_hardware_prep: false
+  skip_storage_prep: false
+  skip_day2_operations: false
+  dry_run: false
+
+# =============================================================================
+# Hardware Configuration
+# =============================================================================
+hardware:
+  bmc_type: "idrac"  # Options: idrac, ilo, redfish
+  bmc_port: 443
+  bmc_timeout: 60
+  bios:
+    boot_mode: "uefi"  # Options: uefi, bios
+    virtualization: true
+    power_management: true
+  raid:
+    controller_mode: "raid"
+    cache_policy: "writeback"
+  esxi:
+    install_method: "pxe"  # Options: pxe, usb, cdrom
+    timeout: 3600
+
+# =============================================================================
+# Storage Configuration (Dell PowerScale/Isilon)
+# =============================================================================
+storage:
+  powerscale:
+    hostname: "{{ vault_powerscale_hostname }}"
+    api_port: 8080
+    api_base_url: "https://{{ storage.powerscale.hostname }}:{{ storage.powerscale.api_port }}"
+    timeout: 120
+    # Credentials are stored in vault
+  nfs:
+    base_path: "/ifs/vcf"
+    exports:
+      - name: "vcf-vsan"
+        path: "/ifs/vcf/vsan"
+        clients: "{{ groups.vcf_hosts | map('extract', hostvars, ['ansible_host']) | list }}"
+        rw: true
+      - name: "vcf-vmotion"
+        path: "/ifs/vcf/vmotion"
+        clients: "{{ groups.vcf_hosts | map('extract', hostvars, ['ansible_host']) | list }}"
+        rw: true
+  synciq:
+    enabled: true
+    policy_name: "vcf-replication"
+    source_path: "/ifs/vcf"
+    target_host: "{{ vault_synciq_target_host }}"
+    target_path: "/ifs/vcf-backup"
+    schedule: "daily"
+
+# =============================================================================
+# Network Configuration
+# =============================================================================
+network:
+  management:
+    vlan: "{{ vault_mgmt_vlan }}"
+    mtu: 1500
+    gateway: "{{ vault_mgmt_gateway }}"
+    dns_servers:
+      - "{{ vault_dns_server_1 }}"
+      - "{{ vault_dns_server_2 }}"
+    ntp_servers:
+      - "{{ vault_ntp_server_1 }}"
+      - "{{ vault_ntp_server_2 }}"
+  vsan:
+    vlan: "{{ vault_vsan_vlan }}"
+    mtu: 9000
+    lacp_enabled: true
+  vmotion:
+    vlan: "{{ vault_vmotion_vlan }}"
+    mtu: 9000
+    lacp_enabled: true
+  vsphere:
+    vlan: "{{ vault_vsphere_vlan }}"
+    mtu: 1500
+  nsx:
+    vlan: "{{ vault_nsx_vlan }}"
+    mtu: 9000
+
+# =============================================================================
+# VCF Deployment Specification
+# =============================================================================
+vcf_deployment:
+  domain_name: "{{ vault_domain_name }}"
+  admin_password: "{{ vault_vcf_admin_password }}"
+  root_password: "{{ vault_esxi_root_password }}"
+  sddc_manager:
+    hostname: "{{ vault_sddc_manager_hostname }}"
+    ip_address: "{{ vault_sddc_manager_ip }}"
+    netmask: "{{ vault_mgmt_netmask }}"
+    gateway: "{{ network.management.gateway }}"
+  esxi_hosts:
+    count: "{{ groups.vcf_hosts | length }}"
+    password: "{{ vault_esxi_root_password }}"
+  nsx:
+    enabled: true
+    license_key: "{{ vault_nsx_license_key }}"
+  vsan:
+    enabled: true
+    license_key: "{{ vault_vsan_license_key }}"
+  vcenter:
+    license_key: "{{ vault_vcenter_license_key }}"
+
+# =============================================================================
+# SDDC Manager Configuration (for Day 2 operations)
+# =============================================================================
+sddc_manager:
+  hostname: "{{ vcf_deployment.sddc_manager.hostname }}"
+  ip_address: "{{ vcf_deployment.sddc_manager.ip_address }}"
+  port: 443
+  api_base_url: "https://{{ sddc_manager.hostname }}"
+  timeout: 300
+  # Credentials are stored in vault (same as VCF admin)
+
+# =============================================================================
+# VCF Automation and Operations Configuration (Day 2)
+# =============================================================================
+vcf_automation:
+  enabled: true
+  appliance:
+    hostname: "{{ vault_vcf_automation_hostname }}"
+    ip_address: "{{ vault_vcf_automation_ip }}"
+    netmask: "{{ vault_mgmt_netmask }}"
+    gateway: "{{ network.management.gateway }}"
+    sizing:
+      cpu: "{{ vault_vcf_automation_cpu | default(8) }}"
+      memory_gb: "{{ vault_vcf_automation_memory | default(32) }}"
+      disk_gb: "{{ vault_vcf_automation_disk | default(200) }}"
+    license_key: "{{ vault_vcf_automation_license_key }}"
+  networking:
+    portgroup: "{{ vault_vcf_automation_portgroup }}"
+  registration:
+    vcenter: "{{ vcf_deployment.sddc_manager.hostname }}"
+    nsx: "{{ vcf_deployment.sddc_manager.hostname }}"
+
+vcf_operations:
+  enabled: true
+  appliance:
+    hostname: "{{ vault_vcf_operations_hostname }}"
+    ip_address: "{{ vault_vcf_operations_ip }}"
+    netmask: "{{ vault_mgmt_netmask }}"
+    gateway: "{{ network.management.gateway }}"
+    sizing:
+      cpu: "{{ vault_vcf_operations_cpu | default(8) }}"
+      memory_gb: "{{ vault_vcf_operations_memory | default(32) }}"
+      disk_gb: "{{ vault_vcf_operations_disk | default(200) }}"
+    license_key: "{{ vault_vcf_operations_license_key }}"
+  networking:
+    portgroup: "{{ vault_vcf_operations_portgroup }}"
+
+# =============================================================================
+# Certificate Configuration
+# =============================================================================
+certificates:
+  generate_self_signed: true
+  country: "US"
+  state: "{{ vault_cert_state }}"
+  locality: "{{ vault_cert_locality }}"
+  organization: "{{ vault_cert_organization }}"
+  organizational_unit: "IT"
+  validity_days: 3650
+
+# =============================================================================
+# Validation Thresholds
+# =============================================================================
+validation:
+  dns:
+    timeout: 5
+    required_servers: 2
+  ntp:
+    max_offset: 100  # milliseconds
+    timeout: 5
+  network:
+    ping_timeout: 2
+    ping_count: 3
+  hardware:
+    min_memory_gb: 128
+    min_cpu_cores: 16
+    min_disk_gb: 500
+
+# =============================================================================
+# Logging and Monitoring
+# =============================================================================
+logging:
+  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "json"  # Options: json, text
+  file: "/var/log/vcf-automation.log"
+  max_size_mb: 100
+  backup_count: 5
+
+monitoring:
+  poll_interval: 30  # seconds
+  max_retries: 120
+  timeout: 3600  # seconds
+
+# =============================================================================
+# Execution Environment
+# =============================================================================
+execution:
+  parallel_hosts: true
+  fork_count: 10
+  timeout: 3600
+  retry_on_failure: true
+  max_retries: 3

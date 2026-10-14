@@ -1,0 +1,40 @@
+---
+# Role: vcf_payload_gen
+# Description: Generate VCF deployment JSON payload based on inventory and version
+
+- name: VCF Payload Generation - Starting
+  debug:
+    msg: "Generating VCF deployment specification for version {{ vcf_version }}"
+
+- name: Select appropriate JSON template based on VCF version
+  set_fact:
+    template_file: "vcf_deployment_spec_{{ vcf_version }}.json.j2"
+
+- name: Generate VCF deployment specification from template
+  template:
+    src: "{{ template_file }}"
+    dest: "/tmp/vcf_deployment_spec.json"
+    mode: '0644'
+  delegate_to: localhost
+  register: generated_spec
+
+- name: Read generated JSON specification
+  slurp:
+    src: "/tmp/vcf_deployment_spec.json"
+  delegate_to: localhost
+  register: vcf_spec_json
+
+- name: Parse JSON specification
+  set_fact:
+    vcf_deployment_spec: "{{ vcf_spec_json.content | from_json }}"
+
+- name: Validate JSON structure
+  assert:
+    - "'spec' in vcf_deployment_spec"
+    - "'vcfVersion' in vcf_deployment_spec.spec"
+    - "'workflowType' in vcf_deployment_spec.spec"
+  fail_msg: "Generated JSON specification is missing required fields"
+
+- name: VCF Payload Generation - Completed
+  debug:
+    msg: "VCF deployment specification generated successfully"

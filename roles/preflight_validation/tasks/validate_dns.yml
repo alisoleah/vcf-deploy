@@ -1,0 +1,32 @@
+---
+# DNS Validation Tasks
+
+- name: Check DNS server connectivity
+  wait_for:
+    host: "{{ item }}"
+    port: 53
+    timeout: "{{ validation.dns.timeout }}"
+  loop: "{{ network.management.dns_servers }}"
+  delegate_to: localhost
+  register: dns_connectivity
+
+- name: Validate DNS resolution for domain
+  debug:
+    msg: "Checking DNS resolution for {{ vcf_deployment.domain_name }}"
+  when: vcf_deployment.domain_name is defined
+
+- name: Perform DNS lookup for domain
+  command: "nslookup {{ vcf_deployment.domain_name }} {{ item }}"
+  register: dns_lookup
+  changed_when: false
+  failed_when: false
+  loop: "{{ network.management.dns_servers }}"
+  delegate_to: localhost
+  when: vcf_deployment.domain_name is defined
+
+- name: Verify DNS lookup was successful
+  assert:
+    - "'NXDOMAIN' not in dns_lookup.stdout"
+    - dns_lookup.rc == 0"
+  loop: "{{ dns_lookup.results }}"
+  when: vcf_deployment.domain_name is defined

@@ -1,0 +1,54 @@
+---
+# Role: vcf_deployment
+# Description: Interact with VCF Installer API to submit deployment and monitor progress
+
+- name: VCF Deployment - Starting
+  debug:
+    msg: "Starting VCF deployment via Installer API"
+
+- name: Validate VCF deployment specification
+  vcf_installer_api:
+    base_uri: "{{ vcf_installer.api_base_url }}"
+    username: "{{ vcf_installer.api_username }}"
+    password: "{{ vcf_installer.api_password }}"
+    operation: "validate_spec"
+    deployment_spec: "{{ vcf_deployment_spec }}"
+    validate_certs: false
+    timeout: "{{ vcf_installer.timeout }}"
+  delegate_to: localhost
+  register: validation_result
+  when: not workflow.skip_preflight
+
+- name: Check validation result
+  assert:
+    - validation_result.result.valid | default(true)
+  fail_msg: "VCF deployment specification validation failed"
+  when: not workflow.skip_preflight
+
+- name: Submit VCF deployment specification
+  vcf_installer_api:
+    base_uri: "{{ vcf_installer.api_base_url }}"
+    username: "{{ vcf_installer.api_username }}"
+    password: "{{ vcf_installer.api_password }}"
+    operation: "submit_deployment"
+    deployment_spec: "{{ vcf_deployment_spec }}"
+    validate_certs: false
+    timeout: "{{ vcf_installer.timeout }}"
+  delegate_to: localhost
+  register: deployment_result
+  when: not workflow.dry_run
+
+- name: Store deployment task ID
+  set_fact:
+    vcf_deployment_task_id: "{{ deployment_result.task_id }}"
+  when: deployment_result.task_id is defined
+
+- name: Monitor deployment task status
+  include_tasks: monitor_deployment.yml
+  when:
+    - vcf_deployment_task_id is defined
+    - not workflow.dry_run
+
+- name: VCF Deployment - Completed
+  debug:
+    msg: "VCF deployment completed successfully"

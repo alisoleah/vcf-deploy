@@ -1,0 +1,26 @@
+---
+# Role: preflight_validation
+# Description: Perform pre-flight validation checks (DNS, NTP, network, hardware)
+
+- name: Pre-Flight Validation - Starting
+  debug:
+    msg: "Starting pre-flight validation checks"
+
+- name: Validate DNS resolution
+  include_tasks: validate_dns.yml
+
+- name: Validate NTP synchronization
+  include_tasks: validate_ntp.yml
+
+- name: Validate network connectivity
+  include_tasks: validate_network.yml
+
+- name: Validate hardware resources
+  include_tasks: validate_hardware.yml
+
+- name: Validate certificate configuration
+  include_tasks: validate_certificates.yml
+
+- name: Pre-Flight Validation - Completed
+  debug:
+    msg: "All pre-flight validation checks completed successfully"

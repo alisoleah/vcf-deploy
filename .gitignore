@@ -1,0 +1,53 @@
+# Ansible
+*.retry
+retry/
+*.pyc
+__pycache__/
+*.log
+logs/
+
+# Vault
+.vault_pass
+credentials/*/.vault_pass
+credentials/*/vault.yml.decrypted
+
+# Python
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+/tmp/
+*.tmp
+*.bak
+
+# Execution Environment
+.ansible-builder/
+*.tar
+*.tar.gz
+
+# Certificates (should be generated, not committed)
+files/certificates/*.pem
+files/certificates/*.key
+files/certificates/*.crt
+
+# Sensitive data (should be in vault)
+*.secret
+*.password
+*.key
+credentials/*/vault.yml

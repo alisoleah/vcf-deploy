@@ -1,0 +1,23 @@
+---
+# Role: day2_operations
+# Description: Deploy VCF Automation and VCF Operations appliances via SDDC Manager API
+
+- name: Day 2 Operations - Starting
+  debug:
+    msg: "Starting Day 2 operations for VCF Automation and Operations appliances"
+
+- name: Deploy VCF Automation appliance
+  include_tasks: deploy_automation.yml
+  when: vcf_automation.enabled
+
+- name: Deploy VCF Operations appliance
+  include_tasks: deploy_operations.yml
+  when: vcf_operations.enabled
+
+- name: Validate appliance registrations
+  include_tasks: validate_registration.yml
+  when: vcf_automation.enabled or vcf_operations.enabled
+
+- name: Day 2 Operations - Completed
+  debug:
+    msg: "Day 2 operations completed successfully"

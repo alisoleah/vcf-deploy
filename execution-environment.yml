@@ -1,0 +1,57 @@
+---
+version: 3
+
+images:
+  base_image:
+    name: quay.io/rockylinux/rockylinux:9
+
+dependencies:
+  python_interpreter:
+    package_system: python3
+    python_path: /usr/bin/python3
+  
+  ansible_core:
+    package_pip: ansible-core>=2.15.0
+  
+  ansible_runner:
+    package_pip: ansible-runner>=2.3.0
+  
+  system:
+    - openssl-devel
+    - python3-devel
+    - gcc
+    - libffi-devel
+    - libyaml-devel
+    - curl
+    - wget
+    - openssh-clients
+  
+  python:
+    - requests>=2.31.0
+    - urllib3>=2.0.0
+    - pyyaml>=6.0.0
+    - jinja2>=3.1.0
+    - jsonschema>=4.20.0
+    - pydantic>=2.5.0
+    - cryptography>=41.0.0
+    - python-json-logger>=2.0.0
+    - rich>=13.0.0
+    - python-dotenv>=1.0.0
+    - redfish>=3.2.0
+  
+  galaxy:
+    collections:
+      - name: community.general
+        version: ">=7.0.0"
+      - name: vmware.vmware_rest
+        version: ">=3.0.0"
+      - name: community.crypto
+        version: ">=2.0.0"
+      - name: ansible.netcommon
+        version: ">=5.0.0"
+
+options:
+  package_manager_path: /usr/bin/dnf
+  
+  build_args:
+    EE_BASE_IMAGE: quay.io/rockylinux/rockylinux:9

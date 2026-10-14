@@ -1,0 +1,51 @@
+---
+# Deploy VCF Operations Appliance
+
+- name: Build VCF Operations appliance specification
+  set_fact:
+    vcf_operations_spec:
+      spec:
+        name: "{{ vcf_operations.appliance.hostname }}"
+        description: "VCF Operations Appliance - {{ vcf_environment }} Environment"
+        type: "VCF_OPERATIONS"
+        sizing:
+          cpu: "{{ vcf_operations.appliance.sizing.cpu }}"
+          memoryGB: "{{ vcf_operations.appliance.sizing.memory_gb }}"
+          diskGB: "{{ vcf_operations.appliance.sizing.disk_gb }}"
+        network:
+          ipAddress: "{{ vcf_operations.appliance.ip_address }}"
+          netmask: "{{ vcf_operations.appliance.netmask }}"
+          gateway: "{{ vcf_operations.appliance.gateway }}"
+          portGroup: "{{ vcf_operations.networking.portgroup }}"
+        licenseKey: "{{ vcf_operations.appliance.license_key }}"
+
+- name: Deploy VCF Operations appliance via SDDC Manager API
+  sddc_manager_api:
+    base_uri: "{{ sddc_manager.api_base_url }}"
+    username: "{{ vcf_deployment.admin_password }}"
+    password: "{{ vcf_deployment.admin_password }}"
+    operation: "deploy_operations"
+    appliance_spec: "{{ vcf_operations_spec }}"
+    validate_certs: false
+    timeout: "{{ sddc_manager.timeout }}"
+  delegate_to: localhost
+  register: operations_deployment_result
+  when: not workflow.dry_run
+
+- name: Store VCF Operations appliance ID
+  set_fact:
+    vcf_operations_appliance_id: "{{ operations_deployment_result.appliance_id }}"
+  when: operations_deployment_result.appliance_id is defined
+
+- name: Monitor VCF Operations appliance deployment
+  include_tasks: monitor_appliance.yml
+  vars:
+    appliance_id: "{{ vcf_operations_appliance_id }}"
+    appliance_name: "VCF Operations"
+  when:
+    - vcf_operations_appliance_id is defined
+    - not workflow.dry_run
+
+- name: VCF Operations appliance deployment completed
+  debug:
+    msg: "VCF Operations appliance deployed successfully with ID: {{ vcf_operations_appliance_id }}"

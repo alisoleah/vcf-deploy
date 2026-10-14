@@ -1,0 +1,63 @@
+---
+# Validate Appliance Registrations
+
+- name: Wait for appliances to initialize before validation
+  wait_for:
+    timeout: 60
+  delegate_to: localhost
+
+- name: Validate VCF Automation registration with vCenter and NSX
+  sddc_manager_api:
+    base_uri: "{{ sddc_manager.api_base_url }}"
+    username: "{{ vcf_deployment.admin_password }}"
+    password: "{{ vcf_deployment.admin_password }}"
+    operation: validate_registration
+    appliance_id: "{{ vcf_automation_appliance_id }}"
+    validate_certs: false
+    timeout: "{{ sddc_manager.timeout }}"
+  delegate_to: localhost
+  register: automation_registration_result
+  when:
+    - vcf_automation.enabled
+    - vcf_automation_appliance_id is defined
+  retries: 5
+  delay: 30
+
+- name: Check VCF Automation registration status
+  assert:
+    - automation_registration_result.registration_status.vcenter.status == "REGISTERED"
+    - automation_registration_result.registration_status.nsx.status == "REGISTERED"
+  fail_msg: "VCF Automation registration failed - vCenter: {{ automation_registration_result.registration_status.vcenter.status }}, NSX: {{ automation_registration_result.registration_status.nsx.status }}"
+  when:
+    - vcf_automation.enabled
+    - automation_registration_result.registration_status is defined
+
+- name: VCF Automation registration validated successfully
+  debug:
+    msg: "VCF Automation successfully registered with vCenter and NSX"
+  when:
+    - vcf_automation.enabled
+    - automation_registration_result.registration_status is defined
+
+- name: Get Fleet layer status
+  sddc_manager_api:
+    base_uri: "{{ sddc_manager.api_base_url }}"
+    username: "{{ vcf_deployment.admin_password }}"
+    password: "{{ vcf_deployment.admin_password }}"
+    operation: get_fleet_status
+    validate_certs: false
+    timeout: "{{ sddc_manager.timeout }}"
+  delegate_to: localhost
+  register: fleet_status_result
+  when: vcf_automation.enabled or vcf_operations.enabled
+
+- name: Verify Fleet layer is healthy
+  assert:
+    - fleet_status_result.result.status == "HEALTHY"
+  fail_msg: "Fleet layer status is not healthy: {{ fleet_status_result.result.status }}"
+  when: fleet_status_result.result is defined
+
+- name: Fleet layer status verified
+  debug:
+    msg: "Fleet layer is healthy with status: {{ fleet_status_result.result.status }}"
+  when: fleet_status_result.result is defined

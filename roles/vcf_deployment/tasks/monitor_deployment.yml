@@ -1,0 +1,51 @@
+---
+# Deployment Monitoring Tasks
+
+- name: Initialize monitoring variables
+  set_fact:
+    deployment_start_time: "{{ ansible_date_time.iso8601 }}"
+    monitoring_max_retries: "{{ monitoring.max_retries }}"
+    monitoring_retry_count: 0
+    deployment_status: "IN_PROGRESS"
+
+- name: Poll deployment task status
+  vcf_installer_api:
+    base_uri: "{{ vcf_installer.api_base_url }}"
+    username: "{{ vcf_installer.api_username }}"
+    password: "{{ vcf_installer.api_password }}"
+    operation: get_task_status
+    task_id: "{{ vcf_deployment_task_id }}"
+    validate_certs: false
+    timeout: "{{ vcf_installer.timeout }}"
+  delegate_to: localhost
+  register: task_status
+  until: task_status.result.status in ['COMPLETED', 'FAILED', 'ERROR', 'CANCELLED']
+  retries: "{{ monitoring_max_retries }}"
+  delay: "{{ monitoring.poll_interval }}"
+  register: monitoring_loop
+
+- name: Update deployment status
+  set_fact:
+    deployment_status: "{{ task_status.result.status }}"
+  deployment_progress: "{{ task_status.result.progressPercentage | default(0) }}"
+
+- name: Log deployment progress
+  debug:
+    msg: "Deployment progress: {{ deployment_progress }}% - Status: {{ deployment_status }}"
+
+- name: Check if deployment failed
+  fail_msg: "VCF deployment failed with status: {{ deployment_status }}"
+  when: deployment_status in ['FAILED', 'ERROR', 'CANCELLED']
+
+- name: Check if deployment timed out
+  fail_msg: "VCF deployment monitoring timed out after {{ monitoring_max_retries }} attempts"
+  when: monitoring_loop.attempts is defined and monitoring_loop.attempts >= monitoring_max_retries
+
+- name: Wait for additional time if deployment is still in progress
+  wait_for:
+    timeout: "{{ monitoring.poll_interval }}"
+  when: deployment_status == 'IN_PROGRESS' and monitoring_loop.attempts is not defined
+
+- name: Deployment Monitoring - Completed
+  debug:
+    msg: "Deployment monitoring completed with status: {{ deployment_status }}"

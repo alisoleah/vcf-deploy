@@ -1,0 +1,29 @@
+# HTTP/API Clients
+requests>=2.31.0
+urllib3>=2.0.0
+pyyaml>=6.0.0
+jinja2>=3.1.0
+
+# VCF SDK
+# Note: vmware-vcf-sdk may need to be installed from VMware's repository
+# Uncomment if available in PyPI or install via pip from VMware's source
+# vmware-vcf-sdk>=9.0.0
+
+# Hardware Management
+redfish>=3.2.0
+python-redfish-library>=2.0.0
+
+# Validation and Schema
+jsonschema>=4.20.0
+pydantic>=2.5.0
+
+# Credential Management
+cryptography>=41.0.0
+
+# Logging and Monitoring
+python-json-logger>=2.0.0
+rich>=13.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+click>=8.1.0

@@ -1,0 +1,13 @@
+---
+# Playbook: VCF Payload Generation
+# Description: Generate VCF deployment JSON payload based on inventory and version
+
+- name: VCF Payload Generation Playbook
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - group_vars/main.yml
+    - credentials/{{ vcf_environment }}/vault.yml
+  
+  roles:
+    - vcf_payload_gen

@@ -1,0 +1,56 @@
+---
+# Role: storage_prep
+# Description: Configure Dell PowerScale/Isilon storage via OneFS API
+
+- name: Storage Preparation - Starting
+  debug:
+    msg: "Starting storage preparation for Dell PowerScale/Isilon"
+
+- name: Create NFS exports for VCF workloads
+  onefs_nfs_export:
+    base_uri: "{{ storage.powerscale.api_base_url }}"
+    username: "{{ powerscale.api_username }}"
+    password: "{{ powerscale.api_password }}"
+    export_name: "{{ item.name }}"
+    export_path: "{{ item.path }}"
+    clients: "{{ item.clients }}"
+    read_only: "{{ item.rw | default(false) }}"
+    state: present
+    validate_certs: false
+    timeout: "{{ storage.powerscale.timeout }}"
+  delegate_to: localhost
+  loop: "{{ storage.nfs.exports }}"
+  register: nfs_export_result
+  when: storage.nfs.exports is defined
+
+- name: Configure SyncIQ replication policy
+  onefs_synciq:
+    base_uri: "{{ storage.powerscale.api_base_url }}"
+    username: "{{ powerscale.api_username }}"
+    password: "{{ powerscale.api_password }}"
+    policy_name: "{{ storage.synciq.policy_name }}"
+    source_path: "{{ storage.synciq.source_path }}"
+    target_host: "{{ storage.synciq.target_host }}"
+    target_path: "{{ storage.synciq.target_path }}"
+    target_username: "{{ synciq.target_username }}"
+    target_password: "{{ synciq.target_password }}"
+    schedule: "{{ storage.synciq.schedule }}"
+    enabled: "{{ storage.synciq.enabled }}"
+    state: present
+    validate_certs: false
+    timeout: "{{ storage.powerscale.timeout }}"
+  delegate_to: localhost
+  register: synciq_result
+  when: storage.synciq.enabled
+
+- name: Validate storage connectivity
+  wait_for:
+    host: "{{ storage.powerscale.hostname }}"
+    port: "{{ storage.powerscale.api_port }}"
+    timeout: 60
+  delegate_to: localhost
+  when: storage.powerscale.hostname is defined
+
+- name: Storage Preparation - Completed
+  debug:
+    msg: "Storage preparation completed successfully"

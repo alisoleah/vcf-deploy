@@ -1,0 +1,15 @@
+# Required for Redfish and API interactions
+openssl-devel
+python3-devel
+gcc
+
+# Required for credential management
+libffi-devel
+
+# Required for JSON/YAML processing
+libyaml-devel
+
+# Network utilities
+curl
+wget
+openssh-clients

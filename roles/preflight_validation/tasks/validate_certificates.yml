@@ -1,0 +1,54 @@
+---
+# Certificate Validation Tasks
+
+- name: Check if self-signed certificates should be generated
+  debug:
+    msg: "Certificate generation: {{ certificates.generate_self_signed }}"
+
+- name: Validate certificate directory exists
+  file:
+    path: "{{ files.certificates }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  when: certificates.generate_self_signed
+
+- name: Check for existing certificates
+  stat:
+    path: "{{ files.certificates }}/vcf-cert.pem"
+  register: cert_exists
+  delegate_to: localhost
+
+- name: Generate self-signed certificate if not exists
+  command: >
+    openssl req -x509 -nodes -days {{ certificates.validity_days }}
+    -newkey rsa:4096
+    -keyout {{ files.certificates }}/vcf-key.pem
+    -out {{ files.certificates }}/vcf-cert.pem
+    -subj "/C={{ certificates.country }}/ST={{ certificates.state }}/L={{ certificates.locality }}/O={{ certificates.organization }}/OU={{ certificates.organizational_unit }}/CN={{ vcf_deployment.sddc_manager.hostname }}"
+  delegate_to: localhost
+  when:
+    - certificates.generate_self_signed
+    - not cert_exists.stat.exists
+  register: cert_generation
+
+- name: Validate certificate file exists
+  stat:
+    path: "{{ files.certificates }}/vcf-cert.pem"
+  register: final_cert_check
+  delegate_to: localhost
+  when: certificates.generate_self_signed
+
+- name: Verify certificate is valid
+  command: "openssl x509 -in {{ files.certificates }}/vcf-cert.pem -checkend 0 -noout"
+  register: cert_validation
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+  when: final_cert_check.stat.exists
+
+- name: Assert certificate is valid
+  assert:
+    - cert_validation.rc == 0
+  fail_msg: "Certificate validation failed or expired"
+  when: final_cert_check.stat.exists

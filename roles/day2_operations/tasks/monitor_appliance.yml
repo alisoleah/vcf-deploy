@@ -1,0 +1,51 @@
+---
+# Monitor Appliance Deployment Status
+
+- name: Initialize monitoring variables
+  set_fact:
+    appliance_start_time: "{{ ansible_date_time.iso8601 }}"
+    monitoring_max_retries: "{{ monitoring.max_retries }}"
+    monitoring_retry_count: 0
+    appliance_status: "IN_PROGRESS"
+
+- name: Poll appliance deployment status
+  sddc_manager_api:
+    base_uri: "{{ sddc_manager.api_base_url }}"
+    username: "{{ vcf_deployment.admin_password }}"
+    password: "{{ vcf_deployment.admin_password }}"
+    operation: get_appliance_status
+    appliance_id: "{{ appliance_id }}"
+    validate_certs: false
+    timeout: "{{ sddc_manager.timeout }}"
+  delegate_to: localhost
+  register: appliance_status_result
+  until: appliance_status_result.result.status in ['COMPLETED', 'FAILED', 'ERROR', 'CANCELLED']
+  retries: "{{ monitoring_max_retries }}"
+  delay: "{{ monitoring.poll_interval }}"
+  register: monitoring_loop
+
+- name: Update appliance status
+  set_fact:
+    appliance_status: "{{ appliance_status_result.result.status }}"
+    appliance_progress: "{{ appliance_status_result.result.progressPercentage | default(0) }}"
+
+- name: Log appliance deployment progress
+  debug:
+    msg: "{{ appliance_name }} deployment progress: {{ appliance_progress }}% - Status: {{ appliance_status }}"
+
+- name: Check if appliance deployment failed
+  fail_msg: "{{ appliance_name }} deployment failed with status: {{ appliance_status }}"
+  when: appliance_status in ['FAILED', 'ERROR', 'CANCELLED']
+
+- name: Check if appliance deployment timed out
+  fail_msg: "{{ appliance_name }} deployment monitoring timed out after {{ monitoring_max_retries }} attempts"
+  when: monitoring_loop.attempts is defined and monitoring_loop.attempts >= monitoring_max_retries
+
+- name: Wait for additional time if deployment is still in progress
+  wait_for:
+    timeout: "{{ monitoring.poll_interval }}"
+  when: appliance_status == 'IN_PROGRESS' and monitoring_loop.attempts is not defined
+
+- name: Appliance deployment monitoring completed
+  debug:
+    msg: "{{ appliance_name }} deployment monitoring completed with status: {{ appliance_status }}"

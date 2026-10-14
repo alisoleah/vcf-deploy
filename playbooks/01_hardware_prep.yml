@@ -1,0 +1,13 @@
+---
+# Playbook: Hardware Preparation
+# Description: Configure physical hardware (BIOS, RAID, ESXi installation) via Redfish API
+
+- name: Hardware Preparation Playbook
+  hosts: bmc_hosts
+  gather_facts: false
+  vars_files:
+    - group_vars/main.yml
+    - credentials/{{ vcf_environment }}/vault.yml
+  
+  roles:
+    - hardware_prep

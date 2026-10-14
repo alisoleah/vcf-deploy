@@ -1,0 +1,13 @@
+---
+# Playbook: Storage Preparation
+# Description: Configure Dell PowerScale/Isilon storage via OneFS API
+
+- name: Storage Preparation Playbook
+  hosts: storage_hosts
+  gather_facts: false
+  vars_files:
+    - group_vars/main.yml
+    - credentials/{{ vcf_environment }}/vault.yml
+  
+  roles:
+    - storage_prep

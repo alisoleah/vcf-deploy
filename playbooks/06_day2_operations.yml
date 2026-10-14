@@ -1,0 +1,13 @@
+---
+# Playbook: Day 2 Operations
+# Description: Deploy VCF Automation and VCF Operations appliances via SDDC Manager API
+
+- name: Day 2 Operations Playbook
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - group_vars/main.yml
+    - credentials/{{ vcf_environment }}/vault.yml
+  
+  roles:
+    - day2_operations

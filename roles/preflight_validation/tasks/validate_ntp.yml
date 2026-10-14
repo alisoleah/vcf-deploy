@@ -1,0 +1,38 @@
+---
+# NTP Validation Tasks
+
+- name: Check NTP server connectivity
+  wait_for:
+    host: "{{ item }}"
+    port: 123
+    timeout: "{{ validation.ntp.timeout }}"
+  loop: "{{ network.management.ntp_servers }}"
+  delegate_to: localhost
+  register: ntp_connectivity
+
+- name: Install ntpdate if not present
+  package:
+    name: ntpdate
+    state: present
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Check NTP synchronization
+  command: "ntpdate -q {{ item }}"
+  register: ntp_sync
+  changed_when: false
+  failed_when: false
+  loop: "{{ network.management.ntp_servers }}"
+  delegate_to: localhost
+  register: ntp_results
+
+- name: Parse NTP offset from output
+  set_fact:
+    ntp_offset: "{{ ntp_sync.stdout | regex_search('offset ([-+]?[0-9.]+)') | default('0') }}"
+  when: ntp_sync.stdout is defined
+
+- name: Validate NTP offset is within acceptable range
+  assert:
+    - ntp_offset | float | abs < (validation.ntp.max_offset / 1000)
+  when: ntp_offset is defined
+  fail_msg: "NTP offset {{ ntp_offset }}s exceeds maximum allowed {{ validation.ntp.max_offset }}ms"

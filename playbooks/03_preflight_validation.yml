@@ -1,0 +1,13 @@
+---
+# Playbook: Pre-Flight Validation
+# Description: Perform pre-flight validation checks (DNS, NTP, network, hardware)
+
+- name: Pre-Flight Validation Playbook
+  hosts: vcf_hosts
+  gather_facts: true
+  vars_files:
+    - group_vars/main.yml
+    - credentials/{{ vcf_environment }}/vault.yml
+  
+  roles:
+    - preflight_validation
